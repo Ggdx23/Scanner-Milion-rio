@@ -1,0 +1,74 @@
+import random
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+# Inicialização dos dados
+dados = pd.DataFrame(columns=['resultado', 'valor'])
+
+# Função para coletar dados em tempo real (simulação)
+def coletar_dados_tempo_real():
+    # Simula um resultado de aposta aleatório: 'vitória' ou 'derrota'
+    resultado = random.choice(['vitória', 'derrota'])
+    # Simula o valor ganho ou perdido
+    valor = random.uniform(0.5, 10) if resultado == 'vitória' else random.uniform(0.1, 5)
+    return {'resultado': resultado, 'valor': valor}
+
+# Função para calcular o RTP
+def calcular_rtp(dados):
+    # Calcula o total apostado (número de apostas, assume-se 1 unidade por aposta)
+    total_apostado = len(dados)
+    # Calcula o total retornado ao jogador
+    total_retornado = dados[dados['resultado'] == 'vitória']['valor'].sum()
+    # Calcula o RTP (Retorno ao Jogador) como uma porcentagem
+    rtp = (total_retornado / total_apostado) * 100
+    return rtp
+
+# Função para identificar padrões de vitórias e derrotas
+def identificar_padroes(dados):
+    # Calcula a sequência de vitórias
+    dados['sequencia_vitorias'] = (dados['resultado'] == 'vitória').astype(int).groupby(dados['resultado'].ne(dados['resultado'].shift()).cumsum()).cumsum()
+    # Calcula a sequência de derrotas
+    dados['sequencia_derrotas'] = (dados['resultado'] == 'derrota').astype(int).groupby(dados['resultado'].ne(dados['resultado'].shift()).cumsum()).cumsum()
+    return dados
+
+# Função de atualização para a animação
+def atualizar(frame):
+    global dados
+    # Coleta novo dado em tempo real
+    novo_dado = coletar_dados_tempo_real()
+    # Adiciona o novo dado ao DataFrame
+    dados = dados.append(novo_dado, ignore_index=True)
+    # Atualiza as sequências de vitórias e derrotas
+    dados = identificar_padroes(dados)
+    
+    # Limpa a figura para a próxima atualização
+    plt.clf()
+    
+    # Gráfico de RTP
+    plt.subplot(1, 2, 1)
+    rtp = calcular_rtp(dados)
+    plt.title('RTP ao longo do tempo')
+    plt.plot(dados.index, [rtp]*len(dados), label=f'RTP: {rtp:.2f}%')
+    plt.xlabel('Número de apostas')
+    plt.ylabel('RTP (%)')
+    plt.legend()
+    
+    # Gráfico de Padrões de Vitórias e Derrotas
+    plt.subplot(1, 2, 2)
+    plt.title('Padrões de Vitórias e Derrotas')
+    plt.plot(dados.index, dados['sequencia_vitorias'], label='Sequência de Vitórias')
+    plt.plot(dados.index, dados['sequencia_derrotas'], label='Sequência de Derrotas')
+    plt.xlabel('Número de apostas')
+    plt.ylabel('Comprimento da sequência')
+    plt.legend()
+    
+    plt.tight_layout()
+
+# Configuração da animação
+fig = plt.figure(figsize=(14, 7))
+# Define a animação para atualizar a cada 1000 milissegundos (1 segundo)
+ani = FuncAnimation(fig, atualizar, interval=1000)
+# Exibe a janela de gráficos
+plt.show()
